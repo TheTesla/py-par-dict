@@ -24,10 +24,11 @@ def write_d(q_mat, n):
             if not q_mat[n][s].empty():
                 k, v = q_mat[n][s].get()
                 set_d(k, v)
-        sleep(0.1)
+            else:
+                sleep(0.01)
 
 def set_s(s, k, v):
-    q_mat[hash(k)%dn][s] = v
+    q_mat[hash(k)%dn][s].put((k,v))
 
 
 sleep(0.1)
@@ -41,11 +42,21 @@ for t in t_vec:
 
 set_s(0, 'a', 3)
 set_s(0, 'b', 4)
+set_s(0, 'c', 42)
+set_s(0, 'd', 23)
+set_s(0, 'e', 1337)
+set_s(0, 'f', 'blub')
+set_s(0, 'g', 'bla')
 
 sleep(0.1)
 
 print(get('a'))
 print(get('b'))
+print(get('c'))
+print(get('d'))
+print(get('e'))
+print(get('f'))
+print(get('g'))
 
 
 
