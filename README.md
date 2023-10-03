@@ -1,6 +1,6 @@
 # Concept of numba dictionary parallelization
 
-Currently `numba` lags support of parallel dictionary writes. this approach shows the concept of an implementation without locking.
+Currently `numba` lags the support of parallel dictionary writes. This approach shows the concept of an implementation without locking.
 
 ## Interface
 
