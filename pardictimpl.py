@@ -7,11 +7,12 @@ from numba import njit, prange
 def new_par_dict(key_type, val_type, nothrds=4, fifo_size=1024):
     keys = np.zeros((nothrds,nothrds,fifo_size),dtype=key_type)
     vals = np.zeros((nothrds,nothrds,fifo_size),dtype=val_type)
+    cmds = np.zeros((nothrds,nothrds,fifo_size),dtype=np.int64)
     rd_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
     wr_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
     dicts = [nb.typed.Dict.empty(key_type=key_type, value_type=val_type) \
             for i in range(nothrds)]
-    return (keys,vals,rd_idx,wr_idx,fifo_size,nothrds,dicts)
+    return (keys,vals,cmds,rd_idx,wr_idx,fifo_size,nothrds,dicts)
 
 @njit
 def par_dict_setitem(state, key, val, thrd_id=None):
@@ -19,7 +20,7 @@ def par_dict_setitem(state, key, val, thrd_id=None):
         thrd_id = nb.get_thread_id()
     thrd_id = int(thrd_id)
 
-    keys, vals, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
 
 
     # write into FIFO
@@ -32,6 +33,7 @@ def par_dict_setitem(state, key, val, thrd_id=None):
     wridx = wr_idx[src_id, dst_id]
     keys[src_id, dst_id, wridx] = key
     vals[src_id, dst_id, wridx] = val
+    cmds[src_id, dst_id, wridx] = True
     wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
 
     # read FIFO into dicts
@@ -40,24 +42,66 @@ def par_dict_setitem(state, key, val, thrd_id=None):
         while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
             k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
             v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+            c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
             rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
-            dicts[dst_id][k] = v
+            if c:
+                dicts[dst_id][k] = v
+            else:
+                del dicts[dst_id][k]
+
+@njit
+def par_dict_delitem(state, key, thrd_id=None):
+    if thrd_id is None:
+        thrd_id = nb.get_thread_id()
+    thrd_id = int(thrd_id)
+
+    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+
+
+    # write into FIFO
+    dst_id = hash(key)%nothrds
+    src_id = thrd_id
+    # check FIFO overflow
+    cap = (rd_idx[src_id, dst_id] - wr_idx[src_id, dst_id] - 1)%fifo_size
+    if cap == 0:
+        print("FIFO overflow!")
+    wridx = wr_idx[src_id, dst_id]
+    keys[src_id, dst_id, wridx] = key
+    cmds[src_id, dst_id, wridx] = False
+    wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
+
+    # read FIFO into dicts
+    dst_id = thrd_id
+    for src_id in range(nothrds):
+        while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+            k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
+            v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+            c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
+            rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+            if c:
+                dicts[dst_id][k] = v
+            else:
+                del dicts[dst_id][k]
 
 @njit(parallel=True)
 def par_dict_sync(state):
-    keys, vals, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
     for dst_id in prange(nothrds):
         for src_id in range(nothrds):
             while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
                 k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
                 v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
                 rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
-                dicts[dst_id][k] = v
+                if c:
+                    dicts[dst_id][k] = v
+                else:
+                    del dicts[dst_id][k]
 
 
 @njit
 def par_dict_getitem(state, key):
-    keys, vals, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
     return dicts[hash(key)%nothrds][key]
 
 @njit(parallel=True)
@@ -83,7 +127,12 @@ def demo():
 
     print(tmp)
 
+    for i in prange(n):
+        par_dict_delitem(pdict, i)
 
+    print([len(e) for e in pdict[-1]])
+    par_dict_sync(pdict)
+    print([len(e) for e in pdict[-1]])
 
 if __name__ == "__main__":
     demo()
