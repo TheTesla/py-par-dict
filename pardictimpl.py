@@ -13,6 +13,7 @@ def new_par_dict(key_type, val_type, nothrds=4, fifo_size=1024):
             for i in range(nothrds)]
     return (keys,vals,rd_idx,wr_idx,fifo_size,nothrds,dicts)
 
+@njit
 def par_dict_setitem(state, key, val, thrd_id=None):
     if thrd_id is None:
         thrd_id = nb.get_thread_id()
@@ -55,15 +56,15 @@ def par_dict_sync(state):
 
 
 @njit
-def par_dict_getitem(state, key, val):
+def par_dict_getitem(state, key):
     keys, vals, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
     return dicts[hash(key)%nothrds][key]
 
 @njit(parallel=True)
 def demo():
-    n = 100000000
+    n = 10000000
     no_threads = nb.get_num_threads()
-    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 10240000)
+    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 102400)
     par_dict_setitem(pdict, int(23), 42.0)
 
     for i in prange(n):
@@ -76,6 +77,11 @@ def demo():
     print([len(e) for e in pdict[-1]])
     #print(pdict[-1])
 
+    tmp = 0
+    for i in prange(n):
+        tmp += par_dict_getitem(pdict, i)
+
+    print(tmp)
 
 
 
