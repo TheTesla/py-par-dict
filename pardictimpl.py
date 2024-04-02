@@ -2,6 +2,7 @@
 import numpy as np
 import numba as nb
 from numba import njit, prange
+import time
 
 @njit(parallel=True)
 def new_par_dict(key_type, val_type, nothrds=4, fifo_size=1024):
@@ -108,12 +109,13 @@ def par_dict_getitem(state, key):
 def demo():
     n = 10000000
     no_threads = nb.get_num_threads()
-    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 102400)
+    #no_threads = 16 
+    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**20)
     par_dict_setitem(pdict, int(23), 42.0)
 
     for i in prange(n):
         k = i
-        v = np.sin(i*3.0)
+        v = np.sin(8**(1/i)*3.0)**0.3
         par_dict_setitem(pdict, k, v)
 
     print([len(e) for e in pdict[-1]])
@@ -135,6 +137,13 @@ def demo():
     print([len(e) for e in pdict[-1]])
 
 if __name__ == "__main__":
-    demo()
+    for n in range(nb.config.NUMBA_NUM_THREADS):
+        if n == 0:
+            n = 1
+        nb.set_num_threads(n)
+        t0 = time.time()
+        demo()
+        t = time.time() - t0
+        print(f"- threads: {n: 2} - time: {t: 3.2f} cputime: {t*n: 3.2f}")
 
 
