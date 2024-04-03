@@ -9,7 +9,7 @@ import time
 def new_par_dict(key_type, val_type, nothrds=4, fifo_size=1024):
     keys = np.zeros((nothrds,nothrds,fifo_size),dtype=key_type)
     vals = np.zeros((nothrds,nothrds,fifo_size),dtype=val_type)
-    cmds = np.zeros((nothrds,nothrds,fifo_size),dtype=np.int64)
+    cmds = np.zeros((nothrds,nothrds,fifo_size),dtype=np.int8)
     rd_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
     wr_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
     dicts = [nb.typed.Dict.empty(key_type=key_type, value_type=val_type) \
