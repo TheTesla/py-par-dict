@@ -115,7 +115,7 @@ def par_dict_getitem(state, key):
 #@njit(parallel=True,nogil=True)
 @njit(parallel=True)
 def demo():
-    n = 8000000
+    n = 10000000
     no_threads = nb.get_num_threads()
     #no_threads = 8
     pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**20)
@@ -123,7 +123,7 @@ def demo():
 
     for i in prange(n):
         k = i
-        v = np.sin(8**(1/(1+i))*3.0)**0.3
+        v = np.sin(i)
         par_dict_setitem(pdict, k, v)
 
     print([len(e) for e in pdict[-1]])
@@ -145,7 +145,7 @@ def demo():
     print([len(e) for e in pdict[-1]])
 
 if __name__ == "__main__":
-    for n in range(nb.config.NUMBA_NUM_THREADS):
+    for n in range(1+nb.config.NUMBA_NUM_THREADS):
         if n == 0:
             n = 1
         nb.set_num_threads(n)

@@ -8,8 +8,8 @@ import time
 #@njit(parallel=True,nogil=True)
 @njit(parallel=False)
 def demo():
-    n = 8000000
-    ndict = {} 
+    n = 10000000
+    ndict = {}
     ndict[23] = 42.0
 
     for i in range(n):
