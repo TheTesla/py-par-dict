@@ -36,7 +36,7 @@ def par_dict_setitem(state, key, val, thrd_id=None):
     wridx = wr_idx[src_id, dst_id]
     keys[src_id, dst_id, wridx] = key
     vals[src_id, dst_id, wridx] = val
-    cmds[src_id, dst_id, wridx] = True
+    cmds[src_id, dst_id, wridx] = 1 
     wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
 
     # read FIFO into dicts
@@ -72,7 +72,7 @@ def par_dict_delitem(state, key, thrd_id=None):
         print("FIFO overflow!")
     wridx = wr_idx[src_id, dst_id]
     keys[src_id, dst_id, wridx] = key
-    cmds[src_id, dst_id, wridx] = False
+    cmds[src_id, dst_id, wridx] = 0
     wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
 
     # read FIFO into dicts
