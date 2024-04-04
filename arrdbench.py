@@ -12,7 +12,7 @@ def demo():
     adict = np.zeros(100000000,dtype=np.float64)
     adict[hash(23)%100000000] = 42.0
 
-    for i in range(n):
+    for i in prange(n):
         k = i
         v = np.sin(i)
         adict[hash(k)%100000000] = v
@@ -20,12 +20,12 @@ def demo():
     #print(len(ndict))
 
     tmp = 0
-    for i in range(n):
+    for i in prange(n):
         tmp += adict[hash(i)%100000000]
 
     print(tmp)
 
-    for i in range(n):
+    for i in prange(n):
         adict[hash(i)%100000000] = 0.0
 
     #print(len(ndict))
