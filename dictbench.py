@@ -14,14 +14,14 @@ def demo():
 
     for i in range(n):
         k = i
-        v = np.sin(8**(1/(1+i))*3.0)**0.3
+        v = np.sin(i)
         ndict[k] = v
 
     print(len(ndict))
 
     tmp = 0
     for i in range(n):
-        tmp += ndict[k]
+        tmp += ndict[i]
 
     print(tmp)
 
