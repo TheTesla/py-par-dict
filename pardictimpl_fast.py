@@ -43,18 +43,18 @@ def par_dict_setitem(state, key, val, thrd_id=None):
     # read FIFO into dicts
     if cap < 100:
         print("write")
-        dst_id2 = thrd_id
-        dst_dict = dicts[dst_id2]
-        for src_id2 in range(nothrds):
-            while wr_idx[src_id2, dst_id2] != rd_idx[src_id2, dst_id2]:
-                k = keys[src_id2, dst_id2, rd_idx[src_id2, dst_id2]]
-                v = vals[src_id2, dst_id2, rd_idx[src_id2, dst_id2]]
-                c = cmds[src_id2, dst_id2, rd_idx[src_id2, dst_id2]]
-                rd_idx[src_id2, dst_id2] = (rd_idx[src_id2, dst_id2] + 1)%fifo_size
-                if c:
-                    dst_dict[k] = v
-                else:
-                    del dst_dict[k]
+#        dst_id = thrd_id
+#        dst_dict = dicts[dst_id]
+#        for src_id in range(nothrds):
+#            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+#                k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+#                if c:
+#                    dst_dict[k] = v
+#                else:
+#                    del dst_dict[k]
 
 @njit(cache=True)
 def par_dict_delitem(state, key, thrd_id=None):
@@ -81,18 +81,18 @@ def par_dict_delitem(state, key, thrd_id=None):
     # read FIFO into dicts
     if cap < 100:
         print("write")
-        dst_id2 = thrd_id
-        dst_dict = dicts[dst_id]
-        for src_id2 in range(nothrds):
-            while wr_idx[src_id2, dst_id2] != rd_idx[src_id2, dst_id2]:
-                k = keys[src_id2, dst_id2, rd_idx[src_id2, dst_id2]]
-                v = vals[src_id2, dst_id2, rd_idx[src_id2, dst_id2]]
-                c = cmds[src_id2, dst_id2, rd_idx[src_id2, dst_id2]]
-                rd_idx[src_id2, dst_id2] = (rd_idx[src_id2, dst_id2] + 1)%fifo_size
-                if c:
-                    dst_dict[k] = v
-                else:
-                    del dst_dict[k]
+#        dst_id = thrd_id
+#        dst_dict = dicts[dst_id]
+#        for src_id in range(nothrds):
+#            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+#                k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+#                if c:
+#                    dst_dict[k] = v
+#                else:
+#                    del dst_dict[k]
 
 @njit(parallel=True)
 def par_dict_sync(state):
