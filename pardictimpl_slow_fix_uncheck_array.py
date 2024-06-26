@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+import numpy as np
+import numba as nb
+from numba import njit, prange
+from numba.typed import List
+from numba.types import Tuple
+import time
+
+
+
+@njit(parallel=True,cache=True)
+def new_par_dict(key_type, val_type, nothrds=4, fifo_size=1024):
+    fifos = np.zeros((nothrds,nothrds,fifo_size,3),dtype=np.float64)
+    rd_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
+    wr_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
+    dicts = List([nb.typed.Dict.empty(key_type=key_type, value_type=val_type) \
+                    for e in range(nothrds)])
+    return (fifos,rd_idx,wr_idx,fifo_size,nothrds,dicts)
+
+@njit(cache=True)
+def par_dict_setitem(state, key, val, thrd_id=None):
+    if thrd_id is None:
+        thrd_id = nb.get_thread_id()
+    thrd_id = int(thrd_id)
+
+    fifos, rd_idx, wr_idx, fifo_size, nothrds = state[:5]
+
+
+    hkey = hash(key)
+    # write into FIFO
+    dst_id = hkey%nothrds
+    src_id = thrd_id
+    # check FIFO overflow
+    cap = (rd_idx[src_id, dst_id] - wr_idx[src_id, dst_id] - 1)%fifo_size
+    if cap == 0:
+        print("FIFO overflow!")
+    wridx = wr_idx[src_id, dst_id]
+    fifos[src_id,dst_id,wridx] = (float(key), val, 1.)
+    #fifos['k'][src_id,dst_id,wridx] = key
+    #fifos['v'][src_id,dst_id,wridx] = val
+    #fifos['c'][src_id,dst_id,wridx] = 1
+    wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
+
+    # read FIFO into dicts
+    #if cap < fifo_size/2:
+    if cap < fifo_size-100:
+        #print("write")
+        dst_id = thrd_id
+        dicts = state[5]
+        dst_dict = dicts.getitem_unchecked(dst_id)
+        for src_id in range(nothrds):
+            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+                k, v, c = fifos[src_id][dst_id][rd_idx[src_id, dst_id]]
+                #k = fifos['k'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                #v = fifos['v'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                #c = fifos['c'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+                if c>0.5:
+                    dst_dict[k] = v
+                else:
+                    del dst_dict[k]
+
+@njit(cache=True)
+def par_dict_delitem(state, key, thrd_id=None):
+    if thrd_id is None:
+        thrd_id = nb.get_thread_id()
+    thrd_id = int(thrd_id)
+
+    #keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    fifos, rd_idx, wr_idx, fifo_size, nothrds = state[:5]
+    #keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+
+
+    hkey = hash(key)
+    # write into FIFO
+    dst_id = hkey%nothrds
+    src_id = thrd_id
+    # check FIFO overflow
+    cap = (rd_idx[src_id, dst_id] - wr_idx[src_id, dst_id] - 1)%fifo_size
+    if cap == 0:
+        print("FIFO overflow!")
+    wridx = wr_idx[src_id, dst_id]
+    fifos[src_id,dst_id,wridx] = (float(key), 0.0, 0.0)
+    #fifos['k'][src_id,dst_id,wridx] = key
+    #fifos['v'][src_id,dst_id,wridx] = 0.0
+    #fifos['c'][src_id,dst_id,wridx] = 0
+    wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
+
+    # read FIFO into dicts
+    #if cap < fifo_size/2:
+    if cap < fifo_size-100:
+        #print("write")
+        dst_id = thrd_id
+        dicts = state[5]
+        dst_dict = dicts.getitem_unchecked(dst_id)
+        for src_id in range(nothrds):
+            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+                k, v, c = fifos[src_id,dst_id,rd_idx[src_id, dst_id]]
+                #k = fifos['k'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                #v = fifos['v'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                #c = fifos['c'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+                if c>0.5:
+                    dst_dict[k] = v
+                else:
+                    del dst_dict[k]
+
+@njit(parallel=True)
+def par_dict_sync(state):
+    fifos, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    for dst_id in prange(nothrds):
+        dst_dict = dicts.getitem_unchecked(dst_id)
+        for src_id in range(nothrds):
+            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+                k, v, c = fifos[src_id,dst_id,rd_idx[src_id, dst_id]]
+                #k = fifos['k'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                #v = fifos['v'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                #c = fifos['c'][src_id,dst_id,rd_idx[src_id, dst_id]]
+                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+                if c>0.5:
+                    dst_dict[k] = v
+                else:
+                    del dst_dict[k]
+
+
+@njit
+def par_dict_getitem(state, key):
+    fifos, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    d = dicts.getitem_unchecked(hash(key)%nothrds)
+    return d[key]
+
+@njit(parallel=True)
+def demo():
+    n = 100000
+    no_threads = nb.get_num_threads()
+    pdict = new_par_dict(np.float64, nb.types.float64, no_threads, 2**16)
+    #pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**14)
+
+    for m in range(100):
+        par_dict_setitem(pdict, int(23), 42.0)
+        for i in prange(n):
+            k = i
+            v = np.sin(i)
+            par_dict_setitem(pdict, k, v)
+
+        par_dict_sync(pdict)
+
+        tmp = 0
+        nn = n
+        for i in prange(nn):
+            tmp += par_dict_getitem(pdict, i)
+
+
+        for i in prange(n):
+            par_dict_delitem(pdict, i)
+
+        par_dict_sync(pdict)
+
+if __name__ == "__main__":
+    for n in range(1+nb.config.NUMBA_NUM_THREADS):
+        if n == 0:
+            n = 1
+        nb.set_num_threads(n)
+        t0 = time.time()
+        demo()
+        t = time.time() - t0
+        print(f"- threads: {n: 2} - time: {t: 3.3f} cputime: {t*n: 3.2f}")
+
+
