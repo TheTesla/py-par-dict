@@ -126,7 +126,7 @@ def demo():
     n = 100000
     no_threads = nb.get_num_threads()
     #pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**17)
-    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**14)
+    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**15)
 
     for m in range(100):
         par_dict_setitem(pdict, int(23), 42.0)

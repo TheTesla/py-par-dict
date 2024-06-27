@@ -13,9 +13,8 @@ def new_par_dict(key_type, val_type, nothrds=4, fifo_size=1024):
     cmds = np.zeros((nothrds,nothrds,fifo_size),dtype=np.int8)
     rd_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
     wr_idx = np.zeros((nothrds,nothrds),dtype=np.int64)
-    dicts = List([nb.typed.Dict.empty(key_type=key_type, value_type=val_type) \
-                    for e in range(nothrds)])
-    return (keys,vals,cmds,rd_idx,wr_idx,fifo_size,nothrds,dicts)
+    dicts = ({0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0}, {0: 0.0} )
+    return (keys,vals,cmds,rd_idx,wr_idx,fifo_size,nothrds,*dicts)
 
 @njit(cache=True,inline='always')
 def par_dict_setitem(state, key, val, thrd_id=None):
@@ -24,7 +23,7 @@ def par_dict_setitem(state, key, val, thrd_id=None):
     thrd_id = int(thrd_id)
 
     keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds = state[:7]
-    #keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    dicts = state[7:]
 
 
     hkey = hash(key)
@@ -42,21 +41,20 @@ def par_dict_setitem(state, key, val, thrd_id=None):
     wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
 
     # read FIFO into dicts
-    if cap < fifo_size/2:
-        #print("write")
-        dst_id = thrd_id
-        dicts = state[7]
-        dst_dict = dicts.getitem_unchecked(dst_id)
-        for src_id in range(nothrds):
-            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
-                k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
-                v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
-                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
-                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
-                if c:
-                    dst_dict[k] = v
-                else:
-                    del dst_dict[k]
+    if cap < 100:
+        print("write")
+#        dst_id = thrd_id
+#        dst_dict = dicts[dst_id]
+#        for src_id in range(nothrds):
+#            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+#                k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+#                if c:
+#                    dst_dict[k] = v
+#                else:
+#                    del dst_dict[k]
 
 @njit(cache=True,inline='always')
 def par_dict_delitem(state, key, thrd_id=None):
@@ -64,9 +62,8 @@ def par_dict_delitem(state, key, thrd_id=None):
         thrd_id = nb.get_thread_id()
     thrd_id = int(thrd_id)
 
-    #keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
     keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds = state[:7]
-    #keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    dicts = state[7:]
 
 
     hkey = hash(key)
@@ -83,27 +80,27 @@ def par_dict_delitem(state, key, thrd_id=None):
     wr_idx[src_id, dst_id] = (wr_idx[src_id, dst_id] + 1)%fifo_size
 
     # read FIFO into dicts
-    if cap < fifo_size/2:
-        #print("write")
-        dst_id = thrd_id
-        dicts = state[7]
-        dst_dict = dicts.getitem_unchecked(dst_id)
-        for src_id in range(nothrds):
-            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
-                k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
-                v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
-                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
-                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
-                if c:
-                    dst_dict[k] = v
-                else:
-                    del dst_dict[k]
+    if cap < 100:
+        print("write")
+#        dst_id = thrd_id
+#        dst_dict = dicts[dst_id]
+#        for src_id in range(nothrds):
+#            while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
+#                k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                v = vals[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                c = cmds[src_id, dst_id, rd_idx[src_id, dst_id]]
+#                rd_idx[src_id, dst_id] = (rd_idx[src_id, dst_id] + 1)%fifo_size
+#                if c:
+#                    dst_dict[k] = v
+#                else:
+#                    del dst_dict[k]
 
 @njit(parallel=True,inline='always')
 def par_dict_sync(state):
-    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
+    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds = state[:7]
+    dicts = state[7:]
     for dst_id in prange(nothrds):
-        dst_dict = dicts.getitem_unchecked(dst_id)
+        dst_dict = dicts[dst_id]
         for src_id in range(nothrds):
             while wr_idx[src_id, dst_id] != rd_idx[src_id, dst_id]:
                 k = keys[src_id, dst_id, rd_idx[src_id, dst_id]]
@@ -118,15 +115,15 @@ def par_dict_sync(state):
 
 @njit(inline='always')
 def par_dict_getitem(state, key):
-    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds, dicts = state
-    return dicts.getitem_unchecked(hash(key)%nothrds)[key]
+    keys, vals, cmds, rd_idx, wr_idx, fifo_size, nothrds = state[:7]
+    dicts = state[7:]
+    return dicts[hash(key)%nothrds][key]
 
 @njit(parallel=True)
 def demo():
     n = 100000
     no_threads = nb.get_num_threads()
-    #pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**17)
-    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**16)
+    pdict = new_par_dict(np.int64, nb.types.float64, no_threads, 2**17)
 
     for m in range(100):
         par_dict_setitem(pdict, int(23), 42.0)
